@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import { BANGLA_TO_ENGLISH_REGION } from "./plate-regions";
+import { BANGLA_TO_ENGLISH_REGION, ENGLISH_TO_BANGLA_REGION } from "./plate-regions";
 import type { FuelLog, EligibilityResult } from "./types";
 
 const COOLDOWN_MS = 72 * 60 * 60 * 1000; // 72 hours
@@ -40,6 +40,17 @@ export function normalizePlate(plate: string): string {
     .replace(/[^a-z0-9\-]/g, "")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+// Convert English region names back to Bangla for display/storage
+// "Dhaka Metro la 61-5041" → "ঢাকা মেট্রো la 61-5041"
+export function toBanglaDisplay(plate: string): string {
+  let result = plate;
+  for (const [english, bangla] of ENGLISH_TO_BANGLA_REGION) {
+    const regex = new RegExp(english, "i");
+    result = result.replace(regex, bangla);
+  }
+  return result.trim();
 }
 
 export async function checkEligibility(
@@ -147,7 +158,7 @@ export async function confirmRefuel(
 
   const log = {
     id: docId,
-    plateNumber: plateNumber.trim(),
+    plateNumber: toBanglaDisplay(plateNumber),
     pumpName,
     staffEmail,
     timestamp: Date.now(),
