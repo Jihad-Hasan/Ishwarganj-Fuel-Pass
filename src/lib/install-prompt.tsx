@@ -14,25 +14,21 @@ export function InstallPrompt() {
   const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
-    // Check if already installed (standalone mode)
     if (window.matchMedia("(display-mode: standalone)").matches) {
       setIsInstalled(true);
       return;
     }
 
-    // Check if user dismissed before (respect for 24 hours)
     const dismissed = localStorage.getItem("pwa-install-dismissed");
     if (dismissed && Date.now() - parseInt(dismissed) < 24 * 60 * 60 * 1000) {
       return;
     }
 
-    // Detect iOS Safari
     const ua = navigator.userAgent;
     const isiOS = /iPad|iPhone|iPod/.test(ua) && !(window as unknown as { MSStream?: unknown }).MSStream;
     setIsIOS(isiOS);
 
     if (isiOS) {
-      // iOS doesn't fire beforeinstallprompt — show manual instructions
       const isInStandalone = ("standalone" in navigator) && (navigator as unknown as { standalone: boolean }).standalone;
       if (!isInStandalone) {
         setShowBanner(true);
@@ -40,7 +36,6 @@ export function InstallPrompt() {
       return;
     }
 
-    // Android / Chrome: capture the install prompt event
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
@@ -48,16 +43,13 @@ export function InstallPrompt() {
     };
 
     window.addEventListener("beforeinstallprompt", handler);
-
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
   const handleInstall = useCallback(async () => {
     if (!deferredPrompt) return;
-
     await deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-
     if (outcome === "accepted") {
       setShowBanner(false);
       setIsInstalled(true);
@@ -73,87 +65,45 @@ export function InstallPrompt() {
   if (isInstalled || !showBanner) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl p-6 space-y-4 animate-slide-up">
-        {/* App Icon */}
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-[#1e3a5f] rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg">
-            <span className="text-white font-black text-sm">FUEL</span>
+    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 animate-slide-up">
+      <div className="max-w-sm mx-auto bg-white rounded-2xl shadow-[0_-4px_30px_rgba(0,0,0,0.15)] p-4">
+        {/* Header row */}
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-11 h-11 bg-[#1e3a5f] rounded-xl flex items-center justify-center flex-shrink-0">
+            <span className="text-white font-black text-[10px] tracking-tight">FUEL</span>
           </div>
-          <div>
-            <h3 className="font-black text-lg text-slate-800">Install Fuel Monitor</h3>
-            <p className="text-slate-500 text-sm">Works offline like a real app</p>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-sm text-slate-800">Install Fuel Monitor</p>
+            <p className="text-xs text-slate-400">Fast, offline, no app store</p>
           </div>
-        </div>
-
-        {isIOS ? (
-          /* iOS Safari instructions */
-          <div className="bg-blue-50 rounded-2xl p-4 space-y-2">
-            <p className="text-sm font-bold text-blue-900">To install on iPhone:</p>
-            <div className="flex items-center gap-3 text-sm text-blue-800">
-              <span className="bg-blue-100 rounded-lg w-7 h-7 flex items-center justify-center font-black text-xs">1</span>
-              <p>Tap the <span className="font-bold">Share</span> button <span className="text-lg">&#x2191;&#xFE0E;</span> at the bottom</p>
-            </div>
-            <div className="flex items-center gap-3 text-sm text-blue-800">
-              <span className="bg-blue-100 rounded-lg w-7 h-7 flex items-center justify-center font-black text-xs">2</span>
-              <p>Scroll down and tap <span className="font-bold">&quot;Add to Home Screen&quot;</span></p>
-            </div>
-            <div className="flex items-center gap-3 text-sm text-blue-800">
-              <span className="bg-blue-100 rounded-lg w-7 h-7 flex items-center justify-center font-black text-xs">3</span>
-              <p>Tap <span className="font-bold">&quot;Add&quot;</span></p>
-            </div>
-          </div>
-        ) : (
-          /* Android / Chrome install button */
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm text-slate-500">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span>No app store needed</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-slate-500">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span>Works offline</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-slate-500">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span>Fast &amp; lightweight</span>
-            </div>
-          </div>
-        )}
-
-        <div className="flex gap-3 pt-2">
           <button
             type="button"
             onClick={handleDismiss}
-            className="flex-1 py-3 rounded-2xl font-bold text-slate-500 bg-slate-100 active:scale-95 transition-transform"
+            className="text-slate-300 hover:text-slate-500 p-1 flex-shrink-0"
+            aria-label="Dismiss"
           >
-            Later
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
-          {!isIOS && (
-            <button
-              type="button"
-              onClick={handleInstall}
-              className="flex-[2] py-3 rounded-2xl font-bold text-white bg-blue-600 shadow-lg shadow-blue-200 active:scale-95 transition-transform"
-            >
-              Install App
-            </button>
-          )}
-          {isIOS && (
-            <button
-              type="button"
-              onClick={handleDismiss}
-              className="flex-[2] py-3 rounded-2xl font-bold text-white bg-blue-600 shadow-lg shadow-blue-200 active:scale-95 transition-transform"
-            >
-              Got it
-            </button>
-          )}
         </div>
+
+        {isIOS ? (
+          <div className="bg-slate-50 rounded-xl p-3 mb-3">
+            <p className="text-xs text-slate-600">
+              Tap <span className="font-bold">Share</span> ↑ then <span className="font-bold">&quot;Add to Home Screen&quot;</span>
+            </p>
+          </div>
+        ) : null}
+
+        {/* Action button */}
+        <button
+          type="button"
+          onClick={isIOS ? handleDismiss : handleInstall}
+          className="w-full py-2.5 rounded-xl font-bold text-sm text-white bg-blue-600 active:scale-[0.98] transition-transform"
+        >
+          {isIOS ? "Got it" : "Install"}
+        </button>
       </div>
     </div>
   );
