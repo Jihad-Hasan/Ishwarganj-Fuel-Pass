@@ -9,7 +9,7 @@ import {
   compressPhoto,
   formatRemainingTime,
 } from "@/lib/fuel-service";
-import { PLATE_REGIONS, isValidPlateRest } from "@/lib/plate-regions";
+import { PLATE_REGIONS, isValidPlateRest, extractRegion } from "@/lib/plate-regions";
 import type { EligibilityResult, FuelLog } from "@/lib/types";
 
 type Step = "input" | "checking" | "result" | "confirming";
@@ -60,9 +60,10 @@ export default function CheckPage() {
 
       const data = await res.json();
       if (data.plate) {
-        // OCR returns full plate — put it all in plateRest, clear region
-        setRegion("");
-        setPlateRest(data.plate);
+        // OCR returns full plate — extract region and set separately
+        const { region: detectedRegion, rest } = extractRegion(data.plate);
+        setRegion(detectedRegion);
+        setPlateRest(rest);
         setOcrStatus("done");
       } else {
         setOcrStatus("failed");

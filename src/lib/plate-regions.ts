@@ -77,6 +77,27 @@ export function isValidPlateRest(plateRest: string): boolean {
   return pattern.test(plateRest.trim());
 }
 
+// Extract region from a full OCR plate string
+// e.g. "ময়মনসিংহ-ল ১২-৯৮৪৪" → { region: "ময়মনসিংহ", rest: "ল ১২-৯৮৪৪" }
+// e.g. "ঢাকা মেট্রো-ল ৬১-৫০৪১" → { region: "ঢাকা মেট্রো", rest: "ল ৬১-৫০৪১" }
+export function extractRegion(plate: string): { region: string; rest: string } {
+  const trimmed = plate.trim();
+
+  // Try matching longest regions first (e.g. "ঢাকা মেট্রো" before "ঢাকা")
+  const sorted = [...PLATE_REGIONS].sort((a, b) => b.length - a.length);
+
+  for (const r of sorted) {
+    if (trimmed.startsWith(r)) {
+      // Remove region and any separator (dash, space) after it
+      const rest = trimmed.slice(r.length).replace(/^[\s\-]+/, "");
+      return { region: r, rest };
+    }
+  }
+
+  // No region found — return everything as rest
+  return { region: "", rest: trimmed };
+}
+
 // English → Bangla mapping for converting display plateNumber back to Bangla
 // Longest first to avoid partial match (e.g. "Dhaka Metro" before "Dhaka")
 export const ENGLISH_TO_BANGLA_REGION: [string, string][] = [
