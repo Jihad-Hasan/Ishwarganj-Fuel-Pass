@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx next:*)",
+      "Bash(firebase use:*)",
+      "Bash(firebase apps:list --project ishwarganj-fuel-pass)",
+      "Bash(firebase apps:sdkconfig WEB 1:813954805475:web:5b201f362e58a1c773dfd6 --project ishwarganj-fuel)",
+      "Bash(firebase firestore:databases:create --project ishwarganj-fuel --location asia-southeast1)",
+      "Bash(firebase firestore:databases:create \"\\(default\\)\" --project ishwarganj-fuel --location asia-southeast1)",
+      "Bash(vercel env:*)"
+    ]
+  }
+}

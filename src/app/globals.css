@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f1f5f9;
+  --foreground: #0f172a;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: system-ui, -apple-system, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Large touch targets for outdoor pump staff */
+.btn-primary {
+  @apply w-full py-4 px-6 rounded-xl text-lg font-bold transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100;
+}
+
+/* Smooth status animations */
+.status-card {
+  @apply rounded-2xl p-6 text-center shadow-lg transition-all duration-300;
+}
