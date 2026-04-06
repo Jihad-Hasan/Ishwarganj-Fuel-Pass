@@ -95,16 +95,13 @@ export default function CheckPage() {
       setError("Enter a plate number");
       return;
     }
-    // If manually entered (not from OCR), validate region + rest format
-    if (ocrStatus !== "done") {
-      if (!region) {
-        setError("অঞ্চল সিলেক্ট করুন");
-        return;
-      }
-      if (!isValidPlateRest(plateRest)) {
-        setError("সঠিক ফরম্যাট: ল ৬১-৫০৪১ (বাংলা অক্ষর, ২ সংখ্যা-৪ সংখ্যা)");
-        return;
-      }
+    if (!region) {
+      setError("অঞ্চল সিলেক্ট করুন");
+      return;
+    }
+    if (!isValidPlateRest(plateRest)) {
+      setError("সঠিক ফরম্যাট: ল ৬১-৫০৪১ (বাংলা অক্ষর, স্পেস, ২ সংখ্যা-৪ সংখ্যা)");
+      return;
     }
     setError("");
     setStep("checking");
