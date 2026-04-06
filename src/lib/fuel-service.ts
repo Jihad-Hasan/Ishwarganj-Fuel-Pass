@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { BANGLA_TO_ENGLISH_REGION } from "./plate-regions";
 import type { FuelLog, EligibilityResult } from "./types";
 
 const COOLDOWN_MS = 72 * 60 * 60 * 1000; // 72 hours
@@ -12,12 +13,20 @@ function banglaToEnglishDigits(str: string): string {
   return str.replace(/[০-৯]/g, (d) => BANGLA_DIGITS[d] || d);
 }
 
+function banglaToEnglishRegion(str: string): string {
+  let result = str;
+  for (const [bangla, english] of BANGLA_TO_ENGLISH_REGION) {
+    result = result.replace(bangla, english);
+  }
+  return result;
+}
+
 export function normalizePlate(plate: string): string {
-  return banglaToEnglishDigits(plate)
+  return banglaToEnglishRegion(banglaToEnglishDigits(plate))
     .trim()
     .toLowerCase()
     .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9\u0980-\u09FF\-]/g, ""); 
+    .replace(/[^a-z0-9\-]/g, "");
 }
 
 export async function checkEligibility(
