@@ -199,7 +199,7 @@ export default function CheckPage() {
                 </svg>
                 {ocrStatus === "scanning" ? "Scanning..." : "Scan Plate (Close-up Photo)"}
               </button>
-              <input ref={scanInputRef} type="file" accept="image/*" onChange={handlePlateScan} className="hidden" />
+              <input ref={scanInputRef} type="file" accept="image/*" capture="environment" onChange={handlePlateScan} className="hidden" />
 
               {ocrStatus === "done" && (
                 <p className="text-center text-xs text-green-600 font-medium">Plate scanned successfully</p>
@@ -215,27 +215,27 @@ export default function CheckPage() {
                 <div className="flex-1 h-px bg-slate-200" />
               </div>
 
-              {/* Region dropdown + plate rest input */}
-              <div className="flex gap-2">
-                <select
-                  aria-label="Select region"
-                  value={region}
-                  onChange={(e) => setRegion(e.target.value)}
-                  className="w-[45%] px-2 py-3.5 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:outline-none font-bold text-sm text-slate-700 bg-white"
-                >
-                  <option value="">অঞ্চল নির্বাচন</option>
-                  {PLATE_REGIONS.map((r) => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
-                <input
-                  type="text"
-                  value={plateRest}
-                  onChange={(e) => setPlateRest(e.target.value)}
-                  placeholder="গ ৫০-০২০৩"
-                  className="flex-1 px-3 py-3.5 rounded-xl border-2 border-slate-200 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
-                />
-              </div>
+              {/* Region dropdown */}
+              <select
+                aria-label="Select region"
+                value={region}
+                onChange={(e) => setRegion(e.target.value)}
+                className="w-full px-3 py-3.5 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:outline-none font-bold text-sm text-slate-700 bg-white"
+              >
+                <option value="">অঞ্চল নির্বাচন করুন</option>
+                {PLATE_REGIONS.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+
+              {/* Plate rest input */}
+              <input
+                type="text"
+                value={plateRest}
+                onChange={(e) => setPlateRest(e.target.value)}
+                placeholder="ল ৬১-৫০৪১"
+                className="w-full px-3 py-3.5 rounded-xl border-2 border-slate-200 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
+              />
 
               {/* Combined plate preview */}
               {plateNumber && (
