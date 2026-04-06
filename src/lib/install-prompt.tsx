@@ -11,7 +11,7 @@ export function InstallButton() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
-  const [showIOSTip, setShowIOSTip] = useState(false);
+  const [showTip, setShowTip] = useState(false);
 
   useEffect(() => {
     if (window.matchMedia("(display-mode: standalone)").matches) {
@@ -45,6 +45,9 @@ export function InstallButton() {
         setIsInstalled(true);
       }
       setDeferredPrompt(null);
+    } else {
+      // No deferred prompt available — show manual tip
+      setShowTip(true);
     }
   }, [deferredPrompt]);
 
@@ -55,8 +58,11 @@ export function InstallButton() {
       <button
         type="button"
         onClick={() => {
-          if (isIOS) setShowIOSTip((v) => !v);
-          else if (deferredPrompt) handleInstall();
+          if (isIOS) {
+            setShowTip((v) => !v);
+          } else {
+            handleInstall();
+          }
         }}
         className="w-full py-3.5 px-4 rounded-2xl border-2 border-green-200 bg-white text-center hover:border-green-300 active:scale-[0.98] transition-all shadow-sm"
       >
@@ -68,10 +74,14 @@ export function InstallButton() {
         </p>
         <p className="text-xs text-slate-500 mt-0.5">Add to home screen for quick access</p>
       </button>
-      {isIOS && showIOSTip && (
+      {showTip && (
         <div className="mt-2 py-2.5 px-4 bg-green-50 border border-green-200 rounded-xl text-center">
           <p className="text-xs text-green-800">
-            Tap <span className="font-bold">Share</span> then <span className="font-bold">&quot;Add to Home Screen&quot;</span>
+            {isIOS ? (
+              <>Tap <span className="font-bold">Share</span> then <span className="font-bold">&quot;Add to Home Screen&quot;</span></>
+            ) : (
+              <>Tap the <span className="font-bold">browser menu (⋮)</span> then <span className="font-bold">&quot;Install app&quot;</span> or <span className="font-bold">&quot;Add to Home Screen&quot;</span></>
+            )}
           </p>
         </div>
       )}
