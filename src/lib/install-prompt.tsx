@@ -51,27 +51,30 @@ export function InstallButton() {
   if (isInstalled) return null;
 
   return (
-    <div className="bg-blue-900">
+    <>
       <button
         type="button"
         onClick={() => {
           if (isIOS) setShowIOSTip((v) => !v);
           else if (deferredPrompt) handleInstall();
         }}
-        className="w-full px-4 py-2 flex items-center justify-center gap-2 active:bg-blue-800 transition-colors"
+        className="w-full py-3.5 px-4 rounded-2xl border-2 border-green-200 bg-white text-center hover:border-green-300 active:scale-[0.98] transition-all shadow-sm"
       >
-        <svg className="w-4 h-4 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-        </svg>
-        <span className="text-white text-xs font-semibold">Install App</span>
+        <p className="text-sm font-bold text-green-700 flex items-center justify-center gap-2">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          Install App
+        </p>
+        <p className="text-xs text-slate-500 mt-0.5">Add to home screen for quick access</p>
       </button>
       {isIOS && showIOSTip && (
-        <div className="px-4 py-1.5 bg-blue-800 text-center">
-          <p className="text-[11px] text-blue-200">
-            Tap <span className="font-bold text-white">Share</span> ↑ then <span className="font-bold text-white">&quot;Add to Home Screen&quot;</span>
+        <div className="mt-2 py-2.5 px-4 bg-green-50 border border-green-200 rounded-xl text-center">
+          <p className="text-xs text-green-800">
+            Tap <span className="font-bold">Share</span> then <span className="font-bold">&quot;Add to Home Screen&quot;</span>
           </p>
         </div>
       )}
-    </div>
+    </>
   );
 }
