@@ -36,19 +36,6 @@ export default function CheckPage() {
   }, [user, authLoading, router]);
 
 
-  // KILL SWITCH: Force Unregister old Service Workers
-  useEffect(() => {
-    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-      navigator.serviceWorker.getRegistrations().then((registrations) => {
-        for (const registration of registrations) { // <--- Changed 'let' to 'const' here
-          registration.unregister().then(() => {
-            console.log("Old Service Worker Unregistered Successfully");
-          });
-        }
-      });
-    }
-  }, []);
-
   // AI plate scan: sends close-up photo to Gemini API
   const runPlateScan = async (file: File) => {
     setOcrStatus("scanning");
