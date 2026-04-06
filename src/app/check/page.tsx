@@ -9,7 +9,7 @@ import {
   compressPhoto,
   formatRemainingTime,
 } from "@/lib/fuel-service";
-import { PLATE_REGIONS } from "@/lib/plate-regions";
+import { PLATE_REGIONS, isValidPlateRest } from "@/lib/plate-regions";
 import type { EligibilityResult, FuelLog } from "@/lib/types";
 
 type Step = "input" | "checking" | "result" | "confirming";
@@ -94,6 +94,17 @@ export default function CheckPage() {
       setError("Enter a plate number");
       return;
     }
+    // If manually entered (not from OCR), validate region + rest format
+    if (ocrStatus !== "done") {
+      if (!region) {
+        setError("অঞ্চল সিলেক্ট করুন");
+        return;
+      }
+      if (!isValidPlateRest(plateRest)) {
+        setError("সঠিক ফরম্যাট: ল ৬১-৫০৪১ (বাংলা অক্ষর, ২ সংখ্যা-৪ সংখ্যা)");
+        return;
+      }
+    }
     setError("");
     setStep("checking");
 
@@ -176,26 +187,33 @@ export default function CheckPage() {
       <main className="px-4 py-6 max-w-lg mx-auto space-y-4">
         {(step === "input" || step === "checking") && (
           <>
-            {/* Step 1: Evidence */}
-            <div className="bg-white rounded-2xl shadow-md p-5">
-              <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Step 1: Vehicle Photo (Evidence)</label>
-              {photoPreview ? (
-                <div className="relative">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={photoPreview} alt="Vehicle" className="w-full h-48 object-cover rounded-xl" />
-                  <button onClick={() => { setPhoto(null); setPhotoPreview(null); }} className="absolute top-2 right-2 bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold">X</button>
-                </div>
-              ) : (
-                <button onClick={() => evidenceInputRef.current?.click()} className="w-full py-8 border-2 border-dashed border-slate-300 rounded-xl text-slate-400">
-                  <span className="text-sm font-bold block">Take Full Vehicle Photo</span>
-                </button>
-              )}
-              <input ref={evidenceInputRef} type="file" accept="image/*" onChange={handleEvidenceCapture} className="hidden" />
-            </div>
-
-            {/* Step 2: Plate Number */}
+            {/* Step 1: Scan Plate */}
             <div className="bg-white rounded-2xl shadow-md p-5 space-y-4">
-              <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide">Step 2: Plate Number</label>
+              <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide">Step 1: Plate Number</label>
+
+              {/* Scan Plate Button - Primary action */}
+              <button onClick={() => scanInputRef.current?.click()} disabled={ocrStatus === "scanning"} className="w-full py-4 rounded-xl text-sm font-bold bg-blue-900 text-white active:scale-[0.98] transition-all shadow-md flex items-center justify-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                {ocrStatus === "scanning" ? "Scanning..." : "Scan Plate (Close-up Photo)"}
+              </button>
+              <input ref={scanInputRef} type="file" accept="image/*" onChange={handlePlateScan} className="hidden" />
+
+              {ocrStatus === "done" && (
+                <p className="text-center text-xs text-green-600 font-medium">Plate scanned successfully</p>
+              )}
+              {ocrStatus === "failed" && (
+                <p className="text-center text-xs text-red-500 font-medium">Could not read plate — enter manually below</p>
+              )}
+
+              {/* Manual entry - or divider */}
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-slate-200" />
+                <span className="text-[11px] text-slate-400 uppercase tracking-widest">or enter manually</span>
+                <div className="flex-1 h-px bg-slate-200" />
+              </div>
 
               {/* Region dropdown + plate rest input */}
               <div className="flex gap-2">
@@ -203,9 +221,9 @@ export default function CheckPage() {
                   aria-label="Select region"
                   value={region}
                   onChange={(e) => setRegion(e.target.value)}
-                  className="w-[45%] px-2 py-4 rounded-xl border-2 border-slate-300 focus:border-blue-500 focus:outline-none font-bold text-sm text-slate-700 bg-white"
+                  className="w-[45%] px-2 py-3.5 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:outline-none font-bold text-sm text-slate-700 bg-white"
                 >
-                  <option value="">Select Region</option>
+                  <option value="">অঞ্চল নির্বাচন</option>
                   {PLATE_REGIONS.map((r) => (
                     <option key={r} value={r}>{r}</option>
                   ))}
@@ -215,7 +233,7 @@ export default function CheckPage() {
                   value={plateRest}
                   onChange={(e) => setPlateRest(e.target.value)}
                   placeholder="গ ৫০-০২০৩"
-                  className="flex-1 px-3 py-4 rounded-xl border-2 border-slate-300 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
+                  className="flex-1 px-3 py-3.5 rounded-xl border-2 border-slate-200 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
                 />
               </div>
 
@@ -224,24 +242,43 @@ export default function CheckPage() {
                 <p className="text-center text-xs text-slate-400 font-mono">{plateNumber}</p>
               )}
 
-              <button onClick={() => scanInputRef.current?.click()} disabled={ocrStatus === "scanning"} className="w-full py-3 rounded-xl text-sm font-bold border-2 border-blue-200 text-blue-700">
-                {ocrStatus === "scanning" ? "Scanning..." : "Scan Plate (Close-up)"}
-              </button>
-              <input ref={scanInputRef} type="file" accept="image/*" onChange={handlePlateScan} className="hidden" />
-
+              {/* Vehicle Type */}
               <div>
                 <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-2">Vehicle Type</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {(["motorcycle", "car"] as const).map((type) => (
-                    <button key={type} onClick={() => setVehicleType(type)} className={`py-2 rounded-xl text-sm font-bold capitalize ${vehicleType === type ? "bg-blue-900 text-white" : "bg-slate-100 text-slate-600"}`}>{type}</button>
-                  ))}
+                  <button type="button" onClick={() => setVehicleType("motorcycle")} className={`py-2 rounded-xl text-sm font-bold ${vehicleType === "motorcycle" ? "bg-blue-900 text-white" : "bg-slate-100 text-slate-600"}`}>Motorcycle</button>
+                  <button type="button" disabled className="py-2 rounded-xl text-sm font-bold bg-slate-100 text-slate-400 cursor-not-allowed relative">
+                    Car
+                    <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">Soon</span>
+                  </button>
                 </div>
               </div>
             </div>
 
+            {/* Step 2: Vehicle Photo (Optional) */}
+            <div className="bg-white rounded-2xl shadow-md p-5">
+              <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-1">Step 2: Vehicle Photo</label>
+              <p className="text-xs text-slate-400 mb-3">Optional — for evidence</p>
+              {photoPreview ? (
+                <div className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={photoPreview} alt="Vehicle" className="w-full h-40 object-cover rounded-xl" />
+                  <button onClick={() => { setPhoto(null); setPhotoPreview(null); }} className="absolute top-2 right-2 bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">X</button>
+                </div>
+              ) : (
+                <button onClick={() => evidenceInputRef.current?.click()} className="w-full py-5 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 active:scale-[0.98] transition-all">
+                  <svg className="w-6 h-6 mx-auto mb-1 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span className="text-xs font-medium block">Add Vehicle Photo</span>
+                </button>
+              )}
+              <input ref={evidenceInputRef} type="file" accept="image/*" onChange={handleEvidenceCapture} className="hidden" />
+            </div>
+
             {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm font-medium text-center">{error}</div>}
 
-            <button onClick={handleCheck} disabled={step === "checking"} className="w-full bg-blue-900 text-white py-3 rounded-xl font-bold mt-4 shadow-lg">{step === "checking" ? "Checking..." : "Check Vehicle"}</button>
+            <button onClick={handleCheck} disabled={step === "checking"} className="w-full bg-blue-900 text-white py-3.5 rounded-xl font-bold shadow-lg active:scale-[0.98] transition-all disabled:opacity-50">{step === "checking" ? "Checking..." : "Check Vehicle"}</button>
           </>
         )}
 
