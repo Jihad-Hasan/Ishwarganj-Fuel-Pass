@@ -11,9 +11,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No image provided" }, { status: 400 });
     }
 
-    // Remove data URL prefix to get raw base64
     const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
-
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const result = await model.generateContent([
@@ -24,17 +22,15 @@ export async function POST(req: NextRequest) {
         },
       },
       {
-        text: `You are a Bangladeshi vehicle number plate reader.
+        text: `You are an expert Bangladeshi vehicle number plate reader. 
 Extract the EXACT text from this vehicle number plate photo.
 
-Bangladesh plates use Bangla script. Example format: ঢাকা মেট্রো-গ ৫০-০২০৩
-
-Rules:
-- Return ONLY the plate text, nothing else
-- Keep the original Bangla script (do NOT transliterate to English)
-- Include the city name, class letter, and numbers exactly as shown
-- Use hyphens (-) between parts as they appear on the plate
-- If you cannot read the plate clearly, respond with: UNREADABLE`,
+CRITICAL RULES:
+1. MUST output ONLY in Bengali (Bangla) script and Bengali numerals (১, ২, ৩, ৪, ৫, ৬, ৭, ৮, ৯, ০).
+2. DO NOT translate or transliterate into English. (e.g., Do NOT write "mymensign", you MUST write "ময়মনসিংহ").
+3. Format example: "ময়মনসিংহ-ল ১২-৯৮৪৪"
+4. Return ONLY the plate text, absolutely nothing else.
+5. If the plate is completely unreadable, respond with: UNREADABLE`,
       },
     ]);
 

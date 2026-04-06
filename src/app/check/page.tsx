@@ -28,17 +28,30 @@ export default function CheckPage() {
   const [error, setError] = useState("");
   const [ocrStatus, setOcrStatus] = useState<"idle" | "scanning" | "done" | "failed">("idle");
 
+  // Auth Redirect
   useEffect(() => {
     if (!authLoading && !user) {
       router.replace("/login");
     }
   }, [user, authLoading, router]);
 
+  // KILL SWITCH: Force Unregister old Service Workers
+  useEffect(() => {
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        for (let registration of registrations) {
+          registration.unregister().then(() => {
+            console.log("Old Service Worker Unregistered Successfully");
+          });
+        }
+      });
+    }
+  }, []);
+
   // AI plate scan: sends close-up photo to Gemini API
   const runPlateScan = async (file: File) => {
     setOcrStatus("scanning");
     try {
-      // Convert file to base64
       const base64 = await new Promise<string>((resolve) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result as string);
@@ -64,7 +77,6 @@ export default function CheckPage() {
     }
   };
 
-  // Evidence photo: full bike photo for proof (NO OCR)
   const handleEvidenceCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -75,7 +87,6 @@ export default function CheckPage() {
     }
   };
 
-  // Plate scan: close-up of plate only → runs OCR
   const handlePlateScan = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -120,12 +131,7 @@ export default function CheckPage() {
         vehicleType
       );
 
-      setPlateNumber("");
-      setPhoto(null);
-      setPhotoPreview(null);
-      setResult(null);
-      setOcrStatus("idle");
-      setStep("input");
+      handleReset();
     } catch {
       setError("Failed to save. Try again.");
       setStep("result");
@@ -152,7 +158,6 @@ export default function CheckPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-100 to-slate-200">
-      {/* Top Bar */}
       <header className="bg-blue-900 text-white px-4 py-3 flex items-center justify-between shadow-md">
         <div>
           <h1 className="font-bold text-lg">Fuel Check</h1>
@@ -175,10 +180,8 @@ export default function CheckPage() {
       </header>
 
       <main className="px-4 py-6 max-w-lg mx-auto space-y-4">
-        {/* ── INPUT STEP ── */}
         {(step === "input" || step === "checking") && (
           <>
-            {/* Step 1: Evidence Photo (full bike) */}
             <div className="bg-white rounded-2xl shadow-md p-5">
               <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">
                 Step 1: Vehicle Photo (Evidence)
@@ -187,11 +190,7 @@ export default function CheckPage() {
               {photoPreview ? (
                 <div className="relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={photoPreview}
-                    alt="Vehicle"
-                    className="w-full h-48 object-cover rounded-xl"
-                  />
+                  <img src={photoPreview} alt="Vehicle" className="w-full h-48 object-cover rounded-xl" />
                   <button
                     onClick={() => {
                       setPhoto(null);
@@ -223,12 +222,9 @@ export default function CheckPage() {
                 capture="environment"
                 onChange={handleEvidenceCapture}
                 className="hidden"
-                aria-label="Capture vehicle evidence photo"
-                title="Capture vehicle evidence photo"
               />
             </div>
 
-            {/* Step 2: Plate Number — Manual + Scan option */}
             <div className="bg-white rounded-2xl shadow-md p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide">
@@ -249,14 +245,13 @@ export default function CheckPage() {
                 className="w-full px-4 py-4 rounded-xl border-2 border-slate-300 focus:border-blue-500 focus:outline-none text-xl font-bold text-center"
               />
 
-              {/* Scan Plate Button */}
               <button
                 onClick={() => scanInputRef.current?.click()}
                 disabled={ocrStatus === "scanning"}
                 className={`w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
                   ocrStatus === "scanning"
                     ? "bg-yellow-100 text-yellow-700 border-2 border-yellow-300"
-                    : "bg-blue-50 text-blue-700 border-2 border-blue-200 hover:bg-blue-100 active:scale-95"
+                    : "bg-blue-50 text-blue-700 border-2 border-blue-200 hover:bg-blue-100"
                 }`}
               >
                 {ocrStatus === "scanning" ? (
@@ -275,19 +270,11 @@ export default function CheckPage() {
               </button>
 
               {ocrStatus === "failed" && (
-                <p className="text-xs text-red-500 text-center font-medium">
-                  Could not read plate. Please type it manually.
-                </p>
+                <p className="text-xs text-red-500 text-center font-medium">Could not read plate. Please type it manually.</p>
               )}
               {ocrStatus === "done" && (
-                <p className="text-xs text-green-600 text-center font-medium">
-                  Plate detected! Verify and edit if needed.
-                </p>
+                <p className="text-xs text-green-600 text-center font-medium">Plate detected! Verify and edit if needed.</p>
               )}
-
-              <p className="text-xs text-slate-400 text-center">
-                Point camera close to the plate only — no bike body
-              </p>
 
               <input
                 ref={scanInputRef}
@@ -296,11 +283,8 @@ export default function CheckPage() {
                 capture="environment"
                 onChange={handlePlateScan}
                 className="hidden"
-                aria-label="Scan plate number close-up"
-                title="Scan plate number close-up"
               />
 
-              {/* Vehicle Type */}
               <div>
                 <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-2">
                   Vehicle Type
@@ -323,104 +307,57 @@ export default function CheckPage() {
               </div>
             </div>
 
-            {/* Error */}
             {error && (
               <div className="bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm font-medium text-center">
                 {error}
               </div>
             )}
 
-            {/* Check Button */}
             <button
               onClick={handleCheck}
               disabled={step === "checking"}
-              className="btn-primary bg-blue-900 text-white hover:bg-blue-800 shadow-lg"
+              className="btn-primary bg-blue-900 text-white hover:bg-blue-800 shadow-lg w-full py-3 rounded-xl font-bold mt-4"
             >
-              {step === "checking" ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Checking...
-                </span>
-              ) : (
-                "Check Vehicle"
-              )}
+              {step === "checking" ? "Checking..." : "Check Vehicle"}
             </button>
           </>
         )}
 
-        {/* ── RESULT STEP ── */}
         {step === "result" && result && (
           <>
             {result.eligible ? (
-              <div className="status-card bg-green-500 text-white">
-                <svg className="w-20 h-20 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                </svg>
+              <div className="status-card bg-green-500 text-white p-6 rounded-2xl text-center">
                 <h2 className="text-3xl font-black mb-1">ELIGIBLE</h2>
                 <p className="text-green-100 text-lg font-medium">{plateNumber}</p>
-                <p className="text-green-200 text-sm mt-1">This vehicle can refuel now</p>
               </div>
             ) : (
-              <div className="status-card bg-red-600 text-white">
-                <svg className="w-20 h-20 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+              <div className="status-card bg-red-600 text-white p-6 rounded-2xl text-center">
                 <h2 className="text-3xl font-black mb-1">BLOCKED</h2>
                 <p className="text-red-100 text-lg font-medium">{plateNumber}</p>
                 <div className="mt-4 bg-red-700/50 rounded-xl p-4 text-left space-y-2">
-                  <p className="text-sm">
-                    <span className="text-red-300">Time Remaining:</span>{" "}
-                    <span className="font-bold text-white text-lg">
-                      {formatRemainingTime(result.remainingMs)}
-                    </span>
-                  </p>
-                  <p className="text-sm">
-                    <span className="text-red-300">Last Pump:</span>{" "}
-                    <span className="font-bold">{result.lastPump}</span>
-                  </p>
-                  <p className="text-sm">
-                    <span className="text-red-300">Last Refueled:</span>{" "}
-                    <span className="font-bold">
-                      {result.lastTimestamp
-                        ? new Date(result.lastTimestamp).toLocaleString("en-BD")
-                        : "N/A"}
-                    </span>
-                  </p>
+                  <p className="text-sm">Time Remaining: <span className="font-bold">{formatRemainingTime(result.remainingMs)}</span></p>
                 </div>
               </div>
             )}
+            
+            {error && <div className="text-red-500 text-center text-sm">{error}</div>}
 
-            {error && (
-              <div className="bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm font-medium text-center">
-                {error}
-              </div>
-            )}
-
-            <div className="space-y-3">
+            <div className="space-y-3 mt-4">
               {result.eligible && (
-                <button
-                  onClick={handleConfirm}
-                  className="btn-primary bg-green-600 text-white hover:bg-green-500 shadow-lg"
-                >
+                <button onClick={handleConfirm} className="w-full bg-green-600 text-white py-3 rounded-xl font-bold">
                   Confirm Refuel
                 </button>
               )}
-              <button
-                onClick={handleReset}
-                className="btn-primary bg-slate-200 text-slate-700 hover:bg-slate-300"
-              >
+              <button onClick={handleReset} className="w-full bg-slate-200 text-slate-700 py-3 rounded-xl font-bold">
                 Check Another Vehicle
               </button>
             </div>
           </>
         )}
 
-        {/* ── CONFIRMING STEP ── */}
         {step === "confirming" && (
-          <div className="status-card bg-blue-900 text-white">
-            <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <div className="bg-blue-900 text-white p-6 rounded-2xl text-center">
             <h2 className="text-xl font-bold">Saving Refuel Record...</h2>
-            <p className="text-blue-200 mt-1">Syncing data across all pumps</p>
           </div>
         )}
       </main>
