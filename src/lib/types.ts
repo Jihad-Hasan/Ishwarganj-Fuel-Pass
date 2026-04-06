@@ -5,6 +5,8 @@ export interface FuelLog {
   timestamp: number; // Unix ms
   photoUrl: string;
   vehicleType: "motorcycle" | "car";
+  scheduledTime?: string; // ISO date for next refuel
+  timeSlot?: string; // time slot string
 }
 
 export interface EligibilityResult {
