@@ -81,15 +81,19 @@ export function isValidPlateRest(plateRest: string): boolean {
 // e.g. "ময়মনসিংহ-ল ১২-৯৮৪৪" → { region: "ময়মনসিংহ", rest: "ল ১২-৯৮৪৪" }
 // e.g. "ঢাকা মেট্রো-ল ৬১-৫০৪১" → { region: "ঢাকা মেট্রো", rest: "ল ৬১-৫০৪১" }
 export function extractRegion(plate: string): { region: string; rest: string } {
+  // Normalize: remove hyphens/dashes between region and rest, keep spaces
+  // OCR may return "ময়মনসিংহ-ল ১২-৯৮৪৪" or "ময়মনসিংহ ল ১২-৯৮৪৪"
   const trimmed = plate.trim();
 
   // Try matching longest regions first (e.g. "ঢাকা মেট্রো" before "ঢাকা")
   const sorted = [...PLATE_REGIONS].sort((a, b) => b.length - a.length);
 
   for (const r of sorted) {
-    if (trimmed.startsWith(r)) {
-      // Remove region and any separator (dash, space) after it
-      const rest = trimmed.slice(r.length).replace(/^[\s\-]+/, "");
+    // Check if plate starts with region name (with or without separator after)
+    const regionPattern = new RegExp(`^${r.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\-]*`);
+    const match = trimmed.match(regionPattern);
+    if (match) {
+      const rest = trimmed.slice(match[0].length).trim();
       return { region: r, rest };
     }
   }

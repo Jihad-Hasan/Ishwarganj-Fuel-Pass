@@ -271,7 +271,7 @@ export default function CheckPage() {
                   <span className="text-xs font-medium block">Add Vehicle Photo</span>
                 </button>
               )}
-              <input ref={evidenceInputRef} type="file" accept="image/*" onChange={handleEvidenceCapture} className="hidden" />
+              <input ref={evidenceInputRef} type="file" accept="image/*" capture="environment" onChange={handleEvidenceCapture} className="hidden" />
             </div>
 
             {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm font-medium text-center">{error}</div>}

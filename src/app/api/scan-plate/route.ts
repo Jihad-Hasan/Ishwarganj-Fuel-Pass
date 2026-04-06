@@ -47,9 +47,11 @@ Extract the EXACT text from this vehicle number plate photo.
 CRITICAL RULES:
 1. MUST output ONLY in Bengali (Bangla) script and Bengali numerals (১, ২, ৩, ৪, ৫, ৬, ৭, ৮, ৯, ০).
 2. DO NOT translate or transliterate into English. (e.g., Do NOT write "mymensign", you MUST write "ময়মনসিংহ").
-3. Format example: "ময়মনসিংহ-ল ১২-৯৮৪৪"
-4. Return ONLY the plate text, absolutely nothing else.
-5. If the plate is completely unreadable, respond with: UNREADABLE`,
+3. Format: "{region} {class_letter} {2_digits}-{4_digits}" with SPACES separating region from class letter.
+4. Example: "ময়মনসিংহ ল ১২-৯৮৪৪" or "ঢাকা মেট্রো ল ৬১-৫০৪১"
+5. Do NOT use hyphens between region name and class letter. Only use hyphen between the digit groups.
+6. Return ONLY the plate text, absolutely nothing else.
+7. If the plate is completely unreadable, respond with: UNREADABLE`,
       },
     ]);
 
