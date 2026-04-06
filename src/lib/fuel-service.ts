@@ -9,24 +9,37 @@ const BANGLA_DIGITS: Record<string, string> = {
   "৫": "5", "৬": "6", "৭": "7", "৮": "8", "৯": "9",
 };
 
-function banglaToEnglishDigits(str: string): string {
-  return str.replace(/[০-৯]/g, (d) => BANGLA_DIGITS[d] || d);
-}
+// Bangla consonants/vowels used as vehicle class letters on plates
+const BANGLA_LETTERS: Record<string, string> = {
+  "ক": "ka", "খ": "kha", "গ": "ga", "ঘ": "gha",
+  "চ": "cha", "ছ": "chha", "জ": "ja", "ঝ": "jha",
+  "ট": "ta", "ঠ": "tha", "ড": "da", "ঢ": "dha",
+  "ণ": "na", "ত": "to", "থ": "tho", "দ": "do", "ধ": "dho", "ন": "no",
+  "প": "pa", "ফ": "fa", "ব": "ba", "ভ": "bha", "ম": "ma",
+  "য": "ya", "র": "ra", "ল": "la", "শ": "sha", "ষ": "sho", "স": "sa", "হ": "ha",
+  "এ": "e", "ই": "i", "উ": "u", "অ": "a",
+};
 
-function banglaToEnglishRegion(str: string): string {
-  let result = str;
+function banglaToEnglish(str: string): string {
+  // 1. Digits
+  let result = str.replace(/[০-৯]/g, (d) => BANGLA_DIGITS[d] || d);
+  // 2. Region names (longest first)
   for (const [bangla, english] of BANGLA_TO_ENGLISH_REGION) {
     result = result.replace(bangla, english);
   }
+  // 3. Remaining Bangla letters (class letters like ল, গ, etc.)
+  result = result.replace(/[\u0980-\u09FF]/g, (ch) => BANGLA_LETTERS[ch] || "");
   return result;
 }
 
 export function normalizePlate(plate: string): string {
-  return banglaToEnglishRegion(banglaToEnglishDigits(plate))
+  return banglaToEnglish(plate)
     .trim()
     .toLowerCase()
     .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9\-]/g, "");
+    .replace(/[^a-z0-9\-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 export async function checkEligibility(
