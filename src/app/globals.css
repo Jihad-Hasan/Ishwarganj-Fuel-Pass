@@ -23,3 +23,12 @@ body {
 .status-card {
   @apply rounded-2xl p-6 text-center shadow-lg transition-all duration-300;
 }
+
+/* PWA install banner slide up */
+@keyframes slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}

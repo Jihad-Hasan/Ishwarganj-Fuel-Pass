@@ -21,13 +21,11 @@ export default function LoginPage() {
       await signIn(email, password);
       router.replace("/check");
     } catch (err: unknown) {
-      const firebaseError = err as { code?: string; message?: string };
-      if (firebaseError.code === "auth/invalid-credential") {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      if (message.includes("Invalid login")) {
         setError("Invalid email or password.");
-      } else if (firebaseError.code === "auth/unauthorized-domain") {
-        setError("This domain is not authorized. Add it in Firebase Console → Auth → Settings → Authorized domains.");
       } else {
-        setError(`Login failed: ${firebaseError.code || firebaseError.message || "Unknown error"}`);
+        setError(`Login failed: ${message}`);
       }
     } finally {
       setLoading(false);
@@ -92,10 +90,20 @@ export default function LoginPage() {
         </button>
       </form>
 
-      <p className="mt-6 text-xs text-slate-400 text-center">
+      {/* Public Search Link for Vehicle Owners */}
+      <div className="mt-6 w-full max-w-sm">
+        <button
+          type="button"
+          onClick={() => router.push("/search")}
+          className="w-full py-3 px-4 bg-white rounded-2xl shadow-md border-2 border-blue-100 text-center hover:border-blue-300 transition-colors"
+        >
+          <p className="text-sm font-bold text-blue-900">Vehicle Owner?</p>
+          <p className="text-xs text-slate-500">Check your next schedule &amp; history</p>
+        </button>
+      </div>
+
+      <p className="mt-4 text-xs text-slate-400 text-center">
         Ishwarganj Smart Fuel Monitoring System
-        <br />
-        Authorized pump staff only
       </p>
     </div>
   );

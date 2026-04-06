@@ -4,7 +4,7 @@ export interface FuelLog {
   staffEmail: string;
   timestamp: number; // Unix ms
   photoUrl: string;
-  vehicleType: "motorcycle" | "car" | "cng" | "other";
+  vehicleType: "motorcycle" | "car";
 }
 
 export interface EligibilityResult {
@@ -20,11 +20,8 @@ export interface PumpStation {
   location: string;
 }
 
-// Firestore schema:
-// Collection: fuel_logs
-//   Document ID: plate_number (e.g., "dhaka-metro-ha-1234")
-//   Fields: { plateNumber, pumpName, staffEmail, timestamp, photoUrl, vehicleType }
-//
-// Collection: pumps
-//   Document ID: auto
-//   Fields: { name, location }
+// Supabase tables:
+// Table: fuel_logs — latest refuel per vehicle (upserted by normalized plate id)
+//   Columns: id, plateNumber, pumpName, staffEmail, timestamp, photoUrl, vehicleType, scheduledTime, timeSlot
+// Table: fuel_history — all refuel records (inserted each time)
+//   Columns: id (docId_timestamp), plateNumber, pumpName, staffEmail, timestamp, photoUrl, vehicleType, scheduledTime, timeSlot

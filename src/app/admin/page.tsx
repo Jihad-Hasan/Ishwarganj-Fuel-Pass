@@ -85,9 +85,9 @@ export default function AdminPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {logs.map((log, i) => (
+            {logs.map((log) => (
               <div
-                key={i}
+                key={`${log.plateNumber}-${log.timestamp}`}
                 className="bg-white rounded-xl shadow-md p-4 flex items-start gap-3"
               >
                 {/* Photo thumbnail */}

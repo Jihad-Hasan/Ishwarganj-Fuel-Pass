@@ -12,7 +12,7 @@ function banglaToEnglishDigits(str: string): string {
   return str.replace(/[০-৯]/g, (d) => BANGLA_DIGITS[d] || d);
 }
 
-function normalizePlate(plate: string): string {
+export function normalizePlate(plate: string): string {
   return banglaToEnglishDigits(plate)
     .trim()
     .toLowerCase()
@@ -56,10 +56,12 @@ export async function checkEligibility(
 }
 
 export async function compressPhoto(file: File): Promise<string> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Failed to read photo file"));
     reader.onload = () => {
       const img = new Image();
+      img.onerror = () => reject(new Error("Failed to load image"));
       img.onload = () => {
         const canvas = document.createElement("canvas");
         const maxW = 640;
@@ -74,39 +76,6 @@ export async function compressPhoto(file: File): Promise<string> {
     };
     reader.readAsDataURL(file);
   });
-}
-
-export async function confirmRefuel(
-  plateNumber: string,
-  pumpName: string,
-  staffEmail: string,
-  photoData: string,
-  vehicleType: FuelLog["vehicleType"]
-): Promise<void> {
-  const docId = normalizePlate(plateNumber);
-
-  const log = {
-    id: docId, // Map document ID to primary key
-    plateNumber: plateNumber.trim(),
-    pumpName,
-    staffEmail,
-    timestamp: Date.now(),
-    photoUrl: photoData,
-    vehicleType,
-  };
-
-  // Upsert into fuel_logs (updates if exists, inserts if new)
-  const { error: logsError } = await supabase.from("fuel_logs").upsert(log);
-  if (logsError) throw logsError;
-
-  // Insert into history with unique ID
-  const historyLog = {
-    ...log,
-    id: `${docId}_${Date.now()}`,
-  };
-
-  const { error: historyError } = await supabase.from("fuel_history").insert(historyLog);
-  if (historyError) throw historyError;
 }
 
 export async function getRecentRefuels(count: number = 50): Promise<FuelLog[]> {
@@ -124,4 +93,52 @@ export function formatRemainingTime(ms: number): string {
   const hours = Math.floor(ms / (1000 * 60 * 60));
   const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
   return `${hours}h ${minutes}m`;
+}
+
+// ৩ দিন পর অটো শিডিউল এবং স্লট ক্যালকুলেট করার ফাংশন
+function getNextSchedule() {
+  const now = new Date();
+  const nextDate = new Date(now);
+  nextDate.setDate(now.getDate() + 3); // ঠিক ৩ দিন পর
+
+  const hour = now.getHours();
+  let slot = "";
+
+  // মালিকদের নির্ধারিত সময় অনুযায়ী স্লট বিভাজন
+  if (hour >= 10 && hour < 13) slot = "10:00 AM - 01:00 PM";
+  else if (hour >= 14 && hour < 18) slot = "02:00 PM - 06:00 PM";
+  else if (hour >= 18 && hour < 22) slot = "06:00 PM - 10:00 PM";
+  else slot = "General Slot (Next Available)";
+
+  return { nextDate, slot };
+}
+
+export async function confirmRefuel(
+  plateNumber: string,
+  pumpName: string,
+  staffEmail: string,
+  photoData: string,
+  vehicleType: FuelLog["vehicleType"]
+): Promise<void> {
+  const docId = normalizePlate(plateNumber);
+  const { nextDate, slot } = getNextSchedule(); // নতুন শিডিউল তৈরি
+
+  const log = {
+    id: docId,
+    plateNumber: plateNumber.trim(),
+    pumpName,
+    staffEmail,
+    timestamp: Date.now(),
+    photoUrl: photoData,
+    vehicleType,
+    scheduledTime: nextDate.toISOString(), // ডাটাবেসে সেভ হবে
+    timeSlot: slot
+  };
+
+  const { error: logsError } = await supabase.from("fuel_logs").upsert(log);
+  if (logsError) throw logsError;
+
+  const historyLog = { ...log, id: `${docId}_${Date.now()}` };
+  const { error: historyError } = await supabase.from("fuel_history").insert(historyLog);
+  if (historyError) throw historyError;
 }

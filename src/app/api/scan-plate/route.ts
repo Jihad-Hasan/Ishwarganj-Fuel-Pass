@@ -1,10 +1,29 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 export async function POST(req: NextRequest) {
   try {
+    // Auth check: verify Supabase session
+    const authHeader = req.headers.get("authorization");
+    if (authHeader) {
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { data: { user } } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
+      if (!user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    }
+
+    if (!GEMINI_API_KEY) {
+      return NextResponse.json({ error: "OCR service not configured" }, { status: 503 });
+    }
+
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
     const { image } = await req.json();
 
     if (!image) {

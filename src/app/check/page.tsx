@@ -9,6 +9,7 @@ import {
   compressPhoto,
   formatRemainingTime,
 } from "@/lib/fuel-service";
+import { PLATE_REGIONS } from "@/lib/plate-regions";
 import type { EligibilityResult, FuelLog } from "@/lib/types";
 
 type Step = "input" | "checking" | "result" | "confirming";
@@ -19,7 +20,8 @@ export default function CheckPage() {
   const evidenceInputRef = useRef<HTMLInputElement>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
 
-  const [plateNumber, setPlateNumber] = useState("");
+  const [region, setRegion] = useState("");
+  const [plateRest, setPlateRest] = useState("");
   const [vehicleType, setVehicleType] = useState<FuelLog["vehicleType"]>("motorcycle");
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -28,6 +30,8 @@ export default function CheckPage() {
   const [error, setError] = useState("");
   const [ocrStatus, setOcrStatus] = useState<"idle" | "scanning" | "done" | "failed">("idle");
 
+  const plateNumber = region ? `${region} ${plateRest}`.trim() : plateRest.trim();
+
   // Auth Redirect
   useEffect(() => {
     if (!authLoading && !user) {
@@ -35,8 +39,6 @@ export default function CheckPage() {
     }
   }, [user, authLoading, router]);
 
-
-  // AI plate scan: sends close-up photo to Gemini API
   const runPlateScan = async (file: File) => {
     setOcrStatus("scanning");
     try {
@@ -46,16 +48,21 @@ export default function CheckPage() {
         reader.readAsDataURL(file);
       });
 
+      const { data: { session } } = await (await import("@/lib/supabase")).supabase.auth.getSession();
       const res = await fetch("/api/scan-plate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({ image: base64 }),
       });
 
       const data = await res.json();
-
       if (data.plate) {
-        setPlateNumber(data.plate);
+        // OCR returns full plate — put it all in plateRest, clear region
+        setRegion("");
+        setPlateRest(data.plate);
         setOcrStatus("done");
       } else {
         setOcrStatus("failed");
@@ -83,7 +90,7 @@ export default function CheckPage() {
   };
 
   const handleCheck = async () => {
-    if (!plateNumber.trim()) {
+    if (!plateNumber) {
       setError("Enter a plate number");
       return;
     }
@@ -127,13 +134,22 @@ export default function CheckPage() {
   };
 
   const handleReset = () => {
-    setPlateNumber("");
+    setRegion("");
+    setPlateRest("");
     setPhoto(null);
     setPhotoPreview(null);
     setResult(null);
     setError("");
     setOcrStatus("idle");
     setStep("input");
+  };
+
+  const getDisplaySlot = () => {
+    const hour = new Date().getHours();
+    if (hour >= 10 && hour < 13) return "10:00 AM - 01:00 PM";
+    if (hour >= 14 && hour < 18) return "02:00 PM - 06:00 PM";
+    if (hour >= 18 && hour < 22) return "06:00 PM - 10:00 PM";
+    return "General Slot";
   };
 
   if (authLoading || !user) {
@@ -152,162 +168,80 @@ export default function CheckPage() {
           <p className="text-blue-200 text-sm">{pumpName} Pump</p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => router.push("/admin")}
-            className="text-xs bg-blue-800 px-3 py-1.5 rounded-lg hover:bg-blue-700"
-          >
-            Admin
-          </button>
-          <button
-            onClick={signOut}
-            className="text-xs bg-blue-800 px-3 py-1.5 rounded-lg hover:bg-blue-700"
-          >
-            Logout
-          </button>
+          <button onClick={() => router.push("/admin")} className="text-xs bg-blue-800 px-3 py-1.5 rounded-lg">Admin</button>
+          <button onClick={signOut} className="text-xs bg-blue-800 px-3 py-1.5 rounded-lg">Logout</button>
         </div>
       </header>
 
       <main className="px-4 py-6 max-w-lg mx-auto space-y-4">
         {(step === "input" || step === "checking") && (
           <>
+            {/* Step 1: Evidence */}
             <div className="bg-white rounded-2xl shadow-md p-5">
-              <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">
-                Step 1: Vehicle Photo (Evidence)
-              </label>
-
+              <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Step 1: Vehicle Photo (Evidence)</label>
               {photoPreview ? (
                 <div className="relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={photoPreview} alt="Vehicle" className="w-full h-48 object-cover rounded-xl" />
-                  <button
-                    onClick={() => {
-                      setPhoto(null);
-                      setPhotoPreview(null);
-                    }}
-                    className="absolute top-2 right-2 bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold shadow-lg"
-                  >
-                    X
-                  </button>
+                  <button onClick={() => { setPhoto(null); setPhotoPreview(null); }} className="absolute top-2 right-2 bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold">X</button>
                 </div>
               ) : (
-                <button
-                  onClick={() => evidenceInputRef.current?.click()}
-                  className="w-full py-8 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 hover:border-blue-400 hover:text-blue-500 transition-colors"
-                >
-                  <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <span className="text-sm font-bold">Take Full Vehicle Photo</span>
-                  <span className="block text-xs mt-1 text-slate-300">For evidence / proof</span>
+                <button onClick={() => evidenceInputRef.current?.click()} className="w-full py-8 border-2 border-dashed border-slate-300 rounded-xl text-slate-400">
+                  <span className="text-sm font-bold block">Take Full Vehicle Photo</span>
                 </button>
               )}
-
-              <input
-                ref={evidenceInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handleEvidenceCapture}
-                className="hidden"
-              />
+              <input ref={evidenceInputRef} type="file" accept="image/*" capture="environment" onChange={handleEvidenceCapture} className="hidden" />
             </div>
 
+            {/* Step 2: Plate Number */}
             <div className="bg-white rounded-2xl shadow-md p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide">
-                  Step 2: Plate Number
-                </label>
-                {ocrStatus === "done" && plateNumber && (
-                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold">
-                    Auto-filled
-                  </span>
-                )}
+              <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide">Step 2: Plate Number</label>
+
+              {/* Region dropdown + plate rest input */}
+              <div className="flex gap-2">
+                <select
+                  aria-label="Select region"
+                  value={region}
+                  onChange={(e) => setRegion(e.target.value)}
+                  className="w-[45%] px-2 py-4 rounded-xl border-2 border-slate-300 focus:border-blue-500 focus:outline-none font-bold text-sm text-slate-700 bg-white"
+                >
+                  <option value="">Select Region</option>
+                  {PLATE_REGIONS.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  value={plateRest}
+                  onChange={(e) => setPlateRest(e.target.value)}
+                  placeholder="গ ৫০-০২০৩"
+                  className="flex-1 px-3 py-4 rounded-xl border-2 border-slate-300 text-lg font-bold text-center focus:border-blue-500 focus:outline-none"
+                />
               </div>
 
-              <input
-                type="text"
-                value={plateNumber}
-                onChange={(e) => setPlateNumber(e.target.value)}
-                placeholder="ঢাকা মেট্রো-গ ৫০-০২০৩"
-                className="w-full px-4 py-4 rounded-xl border-2 border-slate-300 focus:border-blue-500 focus:outline-none text-xl font-bold text-center"
-              />
+              {/* Combined plate preview */}
+              {plateNumber && (
+                <p className="text-center text-xs text-slate-400 font-mono">{plateNumber}</p>
+              )}
 
-              <button
-                onClick={() => scanInputRef.current?.click()}
-                disabled={ocrStatus === "scanning"}
-                className={`w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                  ocrStatus === "scanning"
-                    ? "bg-yellow-100 text-yellow-700 border-2 border-yellow-300"
-                    : "bg-blue-50 text-blue-700 border-2 border-blue-200 hover:bg-blue-100"
-                }`}
-              >
-                {ocrStatus === "scanning" ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-yellow-600 border-t-transparent rounded-full animate-spin" />
-                    Reading plate number...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h4M4 4v4M20 4h-4M20 4v4M4 20h4M4 20v-4M20 20h-4M20 20v-4" />
-                    </svg>
-                    Scan Plate (Close-up Photo)
-                  </>
-                )}
+              <button onClick={() => scanInputRef.current?.click()} disabled={ocrStatus === "scanning"} className="w-full py-3 rounded-xl text-sm font-bold border-2 border-blue-200 text-blue-700">
+                {ocrStatus === "scanning" ? "Scanning..." : "Scan Plate (Close-up)"}
               </button>
-
-              {ocrStatus === "failed" && (
-                <p className="text-xs text-red-500 text-center font-medium">Could not read plate. Please type it manually.</p>
-              )}
-              {ocrStatus === "done" && (
-                <p className="text-xs text-green-600 text-center font-medium">Plate detected! Verify and edit if needed.</p>
-              )}
-
-              <input
-                ref={scanInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handlePlateScan}
-                className="hidden"
-              />
+              <input ref={scanInputRef} type="file" accept="image/*" capture="environment" onChange={handlePlateScan} className="hidden" />
 
               <div>
-                <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-2">
-                  Vehicle Type
-                </label>
-                <div className="grid grid-cols-4 gap-2">
-                  {(["motorcycle", "car", "cng", "other"] as const).map((type) => (
-                    <button
-                      key={type}
-                      onClick={() => setVehicleType(type)}
-                      className={`py-2 rounded-xl text-sm font-bold capitalize transition-all ${
-                        vehicleType === type
-                          ? "bg-blue-900 text-white shadow-md"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                      }`}
-                    >
-                      {type === "cng" ? "CNG" : type}
-                    </button>
+                <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-2">Vehicle Type</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["motorcycle", "car"] as const).map((type) => (
+                    <button key={type} onClick={() => setVehicleType(type)} className={`py-2 rounded-xl text-sm font-bold capitalize ${vehicleType === type ? "bg-blue-900 text-white" : "bg-slate-100 text-slate-600"}`}>{type}</button>
                   ))}
                 </div>
               </div>
             </div>
 
-            {error && (
-              <div className="bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm font-medium text-center">
-                {error}
-              </div>
-            )}
+            {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm font-medium text-center">{error}</div>}
 
-            <button
-              onClick={handleCheck}
-              disabled={step === "checking"}
-              className="btn-primary bg-blue-900 text-white hover:bg-blue-800 shadow-lg w-full py-3 rounded-xl font-bold mt-4"
-            >
-              {step === "checking" ? "Checking..." : "Check Vehicle"}
-            </button>
+            <button onClick={handleCheck} disabled={step === "checking"} className="w-full bg-blue-900 text-white py-3 rounded-xl font-bold mt-4 shadow-lg">{step === "checking" ? "Checking..." : "Check Vehicle"}</button>
           </>
         )}
 
@@ -316,35 +250,49 @@ export default function CheckPage() {
             {result.eligible ? (
               <div className="status-card bg-green-500 text-white p-6 rounded-2xl text-center">
                 <h2 className="text-3xl font-black mb-1">ELIGIBLE</h2>
-                <p className="text-green-100 text-lg font-medium">{plateNumber}</p>
+                <p className="text-green-100 text-lg font-medium mb-4">{plateNumber}</p>
+
+                <div className="mt-4 bg-white/20 backdrop-blur-sm rounded-xl p-4 text-left border border-white/30">
+                  <p className="text-xs font-bold uppercase tracking-wider opacity-80">Next Auto-Schedule</p>
+                  <div className="flex items-end justify-between mt-1">
+                    <div>
+                      <p className="text-xl font-black">
+                        {new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString('en-BD', {
+                          day: 'numeric', month: 'short', year: 'numeric'
+                        })}
+                      </p>
+                      <p className="text-sm font-bold opacity-90">
+                        Slot: {getDisplaySlot()}
+                      </p>
+                    </div>
+                    <div className="bg-white text-green-600 px-2 py-1 rounded text-[10px] font-black uppercase">
+                      3 Days Later
+                    </div>
+                  </div>
+                </div>
+
               </div>
             ) : (
               <div className="status-card bg-red-600 text-white p-6 rounded-2xl text-center">
                 <h2 className="text-3xl font-black mb-1">BLOCKED</h2>
                 <p className="text-red-100 text-lg font-medium">{plateNumber}</p>
-                <div className="mt-4 bg-red-700/50 rounded-xl p-4 text-left space-y-2">
+                <div className="mt-4 bg-red-700/50 rounded-xl p-4 text-left">
                   <p className="text-sm">Time Remaining: <span className="font-bold">{formatRemainingTime(result.remainingMs)}</span></p>
                 </div>
               </div>
             )}
-            
-            {error && <div className="text-red-500 text-center text-sm">{error}</div>}
 
             <div className="space-y-3 mt-4">
               {result.eligible && (
-                <button onClick={handleConfirm} className="w-full bg-green-600 text-white py-3 rounded-xl font-bold">
-                  Confirm Refuel
-                </button>
+                <button onClick={handleConfirm} className="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow-md">Confirm Refuel</button>
               )}
-              <button onClick={handleReset} className="w-full bg-slate-200 text-slate-700 py-3 rounded-xl font-bold">
-                Check Another Vehicle
-              </button>
+              <button onClick={handleReset} className="w-full bg-slate-200 text-slate-700 py-3 rounded-xl font-bold">Check Another Vehicle</button>
             </div>
           </>
         )}
 
         {step === "confirming" && (
-          <div className="bg-blue-900 text-white p-6 rounded-2xl text-center">
+          <div className="bg-blue-900 text-white p-6 rounded-2xl text-center animate-pulse">
             <h2 className="text-xl font-bold">Saving Refuel Record...</h2>
           </div>
         )}

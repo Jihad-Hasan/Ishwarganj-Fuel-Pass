@@ -14,9 +14,8 @@ const customCaching: RuntimeCaching[] = [
   {
     matcher: ({ url }) => {
       return (
+        url.hostname.includes("supabase.co") ||
         url.hostname.includes("googleapis.com") ||
-        url.hostname.includes("firebase") ||
-        url.hostname.includes("firestore") ||
         url.pathname.startsWith("/api/")
       );
     },
