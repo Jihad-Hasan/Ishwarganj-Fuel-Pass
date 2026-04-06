@@ -35,11 +35,12 @@ export default function CheckPage() {
     }
   }, [user, authLoading, router]);
 
+
   // KILL SWITCH: Force Unregister old Service Workers
   useEffect(() => {
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
       navigator.serviceWorker.getRegistrations().then((registrations) => {
-        for (let registration of registrations) {
+        for (const registration of registrations) { // <--- Changed 'let' to 'const' here
           registration.unregister().then(() => {
             console.log("Old Service Worker Unregistered Successfully");
           });
