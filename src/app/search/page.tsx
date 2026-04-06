@@ -69,7 +69,7 @@ export default function PublicSearch() {
       {/* Header */}
       <header className="bg-blue-900 text-white px-4 py-3 flex items-center justify-between shadow-md">
         <div>
-          <h1 className="font-bold text-lg">Fuel Pass</h1>
+          <h1 className="font-bold text-lg">Fuel Monitor</h1>
           <p className="text-blue-200 text-sm">আপনার শিডিউল দেখুন</p>
         </div>
         <Link href="/login" className="text-xs bg-blue-800 px-3 py-1.5 rounded-lg hover:bg-blue-700">

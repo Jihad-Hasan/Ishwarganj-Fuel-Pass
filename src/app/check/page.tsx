@@ -173,7 +173,7 @@ export default function CheckPage() {
     <div className="min-h-screen bg-gradient-to-b from-slate-100 to-slate-200">
       <header className="bg-blue-900 text-white px-4 py-3 flex items-center justify-between shadow-md">
         <div>
-          <h1 className="font-bold text-lg">Fuel Check</h1>
+          <h1 className="font-bold text-lg">Fuel Monitor</h1>
           <p className="text-blue-200 text-sm">{pumpName} Pump</p>
         </div>
         <div className="flex gap-2">

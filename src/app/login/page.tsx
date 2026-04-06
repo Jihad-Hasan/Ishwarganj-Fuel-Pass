@@ -126,9 +126,11 @@ export default function LoginPage() {
 
         </div>
 
-        <p className="mt-6 text-xs text-slate-400 text-center">
-          Ishwarganj Smart Fuel Monitoring System
-        </p>
+        <div className="mt-6 text-center space-y-1">
+          <p className="text-xs text-slate-500 font-medium">Initiative of: Mazed Luthfullahel</p>
+          <p className="text-[11px] text-slate-400">Hon&apos;ble Member of Parliament</p>
+          <p className="text-[10px] text-slate-400 mt-2">Developed by Jihad Hasan Masum</p>
+        </div>
       </div>
     </div>
   );

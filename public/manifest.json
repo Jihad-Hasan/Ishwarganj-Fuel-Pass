@@ -1,6 +1,6 @@
 {
   "name": "Ishwarganj Fuel Monitor",
-  "short_name": "Fuel Check",
+  "short_name": "Fuel Monitor",
   "description": "Smart fuel monitoring for Ishwarganj sub-district pumps",
   "start_url": "/",
   "display": "standalone",
