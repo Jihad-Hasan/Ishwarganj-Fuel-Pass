@@ -14,28 +14,35 @@ export function InstallPrompt() {
   const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
+    // Already running as installed app
     if (window.matchMedia("(display-mode: standalone)").matches) {
       setIsInstalled(true);
       return;
     }
 
-    const dismissed = localStorage.getItem("pwa-install-dismissed");
-    if (dismissed && Date.now() - parseInt(dismissed) < 24 * 60 * 60 * 1000) {
+    // iOS standalone check
+    if (("standalone" in navigator) && (navigator as unknown as { standalone: boolean }).standalone) {
+      setIsInstalled(true);
       return;
     }
 
+    // User dismissed — wait 2 hours before showing again
+    const dismissed = localStorage.getItem("pwa-install-dismissed");
+    if (dismissed && Date.now() - parseInt(dismissed) < 2 * 60 * 60 * 1000) {
+      return;
+    }
+
+    // Detect platform
     const ua = navigator.userAgent;
     const isiOS = /iPad|iPhone|iPod/.test(ua) && !(window as unknown as { MSStream?: unknown }).MSStream;
     setIsIOS(isiOS);
 
     if (isiOS) {
-      const isInStandalone = ("standalone" in navigator) && (navigator as unknown as { standalone: boolean }).standalone;
-      if (!isInStandalone) {
-        setShowBanner(true);
-      }
+      setShowBanner(true);
       return;
     }
 
+    // Android / Chrome: listen for beforeinstallprompt
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
@@ -43,18 +50,29 @@ export function InstallPrompt() {
     };
 
     window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+
+    // Fallback: if beforeinstallprompt doesn't fire within 3 seconds,
+    // show the banner anyway (user can still add to home screen manually)
+    const fallbackTimer = setTimeout(() => {
+      setShowBanner(true);
+    }, 3000);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      clearTimeout(fallbackTimer);
+    };
   }, []);
 
   const handleInstall = useCallback(async () => {
-    if (!deferredPrompt) return;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === "accepted") {
-      setShowBanner(false);
-      setIsInstalled(true);
+    if (deferredPrompt) {
+      await deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === "accepted") {
+        setShowBanner(false);
+        setIsInstalled(true);
+      }
+      setDeferredPrompt(null);
     }
-    setDeferredPrompt(null);
   }, [deferredPrompt]);
 
   const handleDismiss = useCallback(() => {
@@ -99,10 +117,10 @@ export function InstallPrompt() {
         {/* Action button */}
         <button
           type="button"
-          onClick={isIOS ? handleDismiss : handleInstall}
+          onClick={isIOS ? handleDismiss : (deferredPrompt ? handleInstall : handleDismiss)}
           className="w-full py-2.5 rounded-xl font-bold text-sm text-white bg-blue-600 active:scale-[0.98] transition-transform"
         >
-          {isIOS ? "Got it" : "Install"}
+          {isIOS ? "Got it" : (deferredPrompt ? "Install" : "Add to Home Screen")}
         </button>
       </div>
     </div>
