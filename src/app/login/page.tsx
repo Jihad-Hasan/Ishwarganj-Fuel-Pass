@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { InstallButton } from "@/lib/install-prompt";
 
 export default function LoginPage() {
   const { signIn } = useAuth();
@@ -100,6 +101,11 @@ export default function LoginPage() {
           <p className="text-sm font-bold text-blue-900">Vehicle Owner?</p>
           <p className="text-xs text-slate-500">Check your next schedule &amp; history</p>
         </button>
+      </div>
+
+      {/* Install App Button */}
+      <div className="mt-4">
+        <InstallButton />
       </div>
 
       <p className="mt-4 text-xs text-slate-400 text-center">

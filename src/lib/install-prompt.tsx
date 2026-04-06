@@ -7,60 +7,35 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-export function InstallPrompt() {
+// Small inline install button — meant to be placed directly on a page
+export function InstallButton() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [showBanner, setShowBanner] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [showIOSTip, setShowIOSTip] = useState(false);
 
   useEffect(() => {
-    // Already running as installed app
     if (window.matchMedia("(display-mode: standalone)").matches) {
       setIsInstalled(true);
       return;
     }
-
-    // iOS standalone check
     if (("standalone" in navigator) && (navigator as unknown as { standalone: boolean }).standalone) {
       setIsInstalled(true);
       return;
     }
 
-    // User dismissed — wait 2 hours before showing again
-    const dismissed = localStorage.getItem("pwa-install-dismissed");
-    if (dismissed && Date.now() - parseInt(dismissed) < 2 * 60 * 60 * 1000) {
-      return;
-    }
-
-    // Detect platform
     const ua = navigator.userAgent;
     const isiOS = /iPad|iPhone|iPod/.test(ua) && !(window as unknown as { MSStream?: unknown }).MSStream;
     setIsIOS(isiOS);
 
-    if (isiOS) {
-      setShowBanner(true);
-      return;
+    if (!isiOS) {
+      const handler = (e: Event) => {
+        e.preventDefault();
+        setDeferredPrompt(e as BeforeInstallPromptEvent);
+      };
+      window.addEventListener("beforeinstallprompt", handler);
+      return () => window.removeEventListener("beforeinstallprompt", handler);
     }
-
-    // Android / Chrome: listen for beforeinstallprompt
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setShowBanner(true);
-    };
-
-    window.addEventListener("beforeinstallprompt", handler);
-
-    // Fallback: if beforeinstallprompt doesn't fire within 3 seconds,
-    // show the banner anyway (user can still add to home screen manually)
-    const fallbackTimer = setTimeout(() => {
-      setShowBanner(true);
-    }, 3000);
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handler);
-      clearTimeout(fallbackTimer);
-    };
   }, []);
 
   const handleInstall = useCallback(async () => {
@@ -68,61 +43,42 @@ export function InstallPrompt() {
       await deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === "accepted") {
-        setShowBanner(false);
         setIsInstalled(true);
       }
       setDeferredPrompt(null);
     }
   }, [deferredPrompt]);
 
-  const handleDismiss = useCallback(() => {
-    setShowBanner(false);
-    localStorage.setItem("pwa-install-dismissed", Date.now().toString());
-  }, []);
-
-  if (isInstalled || !showBanner) return null;
+  // Already installed — hide button
+  if (isInstalled) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 animate-slide-up">
-      <div className="max-w-sm mx-auto bg-white rounded-2xl shadow-[0_-4px_30px_rgba(0,0,0,0.15)] p-4">
-        {/* Header row */}
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-11 h-11 bg-[#1e3a5f] rounded-xl flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-black text-[10px] tracking-tight">FUEL</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-sm text-slate-800">Install Fuel Monitor</p>
-            <p className="text-xs text-slate-400">Fast, offline, no app store</p>
-          </div>
-          <button
-            type="button"
-            onClick={handleDismiss}
-            className="text-slate-300 hover:text-slate-500 p-1 flex-shrink-0"
-            aria-label="Dismiss"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+    <div className="w-full max-w-sm">
+      <button
+        type="button"
+        onClick={() => {
+          if (isIOS) {
+            setShowIOSTip((v) => !v);
+          } else if (deferredPrompt) {
+            handleInstall();
+          }
+        }}
+        className="w-full py-3 px-4 bg-blue-600 text-white rounded-2xl shadow-md shadow-blue-200 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+        <span className="font-bold text-sm">Install App</span>
+      </button>
+
+      {/* iOS instructions tooltip */}
+      {isIOS && showIOSTip && (
+        <div className="mt-2 bg-white rounded-xl shadow-lg border border-slate-200 p-3">
+          <p className="text-xs text-slate-600">
+            Tap <span className="font-bold">Share</span> ↑ at the bottom, then tap <span className="font-bold">&quot;Add to Home Screen&quot;</span>
+          </p>
         </div>
-
-        {isIOS ? (
-          <div className="bg-slate-50 rounded-xl p-3 mb-3">
-            <p className="text-xs text-slate-600">
-              Tap <span className="font-bold">Share</span> ↑ then <span className="font-bold">&quot;Add to Home Screen&quot;</span>
-            </p>
-          </div>
-        ) : null}
-
-        {/* Action button */}
-        <button
-          type="button"
-          onClick={isIOS ? handleDismiss : (deferredPrompt ? handleInstall : handleDismiss)}
-          className="w-full py-2.5 rounded-xl font-bold text-sm text-white bg-blue-600 active:scale-[0.98] transition-transform"
-        >
-          {isIOS ? "Got it" : (deferredPrompt ? "Install" : "Add to Home Screen")}
-        </button>
-      </div>
+      )}
     </div>
   );
 }
