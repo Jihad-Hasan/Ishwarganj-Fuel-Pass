@@ -146,9 +146,9 @@ export default function PublicSearch() {
                         : new Date((data.timestamp as number) + 72 * 60 * 60 * 1000).toLocaleDateString("en-BD", { day: "numeric", month: "short", year: "numeric" })
                       }
                     </p>
-                    {data.timeSlot && (
+                    {data.timeSlot ? (
                       <p className="text-sm font-bold opacity-90">স্লট: {data.timeSlot as string}</p>
-                    )}
+                    ) : null}
                   </div>
                   <div className="bg-white text-green-600 px-2 py-1 rounded text-[10px] font-black uppercase">
                     ৩ দিন পর
