@@ -34,7 +34,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-gradient-to-b from-slate-100 to-slate-200">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-gradient-to-b from-slate-100 to-slate-200 relative">
+      {/* Install App — top bar */}
+      <div className="absolute top-0 left-0 right-0">
+        <InstallButton />
+      </div>
+
       {/* Header */}
       <div className="text-center mb-8">
         <div className="w-20 h-20 bg-blue-900 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
@@ -103,12 +108,7 @@ export default function LoginPage() {
         </button>
       </div>
 
-      {/* Install App Button */}
-      <div className="mt-4">
-        <InstallButton />
-      </div>
-
-      <p className="mt-4 text-xs text-slate-400 text-center">
+      <p className="mt-6 text-xs text-slate-400 text-center">
         Ishwarganj Smart Fuel Monitoring System
       </p>
     </div>
