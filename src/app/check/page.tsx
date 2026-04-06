@@ -190,7 +190,7 @@ export default function CheckPage() {
                   <span className="text-sm font-bold block">Take Full Vehicle Photo</span>
                 </button>
               )}
-              <input ref={evidenceInputRef} type="file" accept="image/*" capture="environment" onChange={handleEvidenceCapture} className="hidden" />
+              <input ref={evidenceInputRef} type="file" accept="image/*" onChange={handleEvidenceCapture} className="hidden" />
             </div>
 
             {/* Step 2: Plate Number */}
@@ -227,7 +227,7 @@ export default function CheckPage() {
               <button onClick={() => scanInputRef.current?.click()} disabled={ocrStatus === "scanning"} className="w-full py-3 rounded-xl text-sm font-bold border-2 border-blue-200 text-blue-700">
                 {ocrStatus === "scanning" ? "Scanning..." : "Scan Plate (Close-up)"}
               </button>
-              <input ref={scanInputRef} type="file" accept="image/*" capture="environment" onChange={handlePlateScan} className="hidden" />
+              <input ref={scanInputRef} type="file" accept="image/*" onChange={handlePlateScan} className="hidden" />
 
               <div>
                 <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide mb-2">Vehicle Type</label>
