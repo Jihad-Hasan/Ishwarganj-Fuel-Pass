@@ -97,13 +97,13 @@ export async function compressPhoto(file: File): Promise<string> {
       img.onerror = () => reject(new Error("Failed to load image"));
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        const maxW = 640;
+        const maxW = 480;
         const scale = Math.min(1, maxW / img.width);
         canvas.width = img.width * scale;
         canvas.height = img.height * scale;
         const ctx = canvas.getContext("2d")!;
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.6));
+        resolve(canvas.toDataURL("image/jpeg", 0.5));
       };
       img.src = reader.result as string;
     };
@@ -111,15 +111,19 @@ export async function compressPhoto(file: File): Promise<string> {
   });
 }
 
-export async function getRecentRefuels(count: number = 50): Promise<FuelLog[]> {
+export async function getRecentRefuels(page: number = 0, perPage: number = 20): Promise<{ logs: FuelLog[]; hasMore: boolean }> {
+  const from = page * perPage;
+  const to = from + perPage;
+
   const { data, error } = await supabase
     .from("fuel_history")
-    .select("*")
+    .select("id, plateNumber, pumpName, staffEmail, timestamp, vehicleType, scheduledTime, timeSlot")
     .order("timestamp", { ascending: false })
-    .limit(count);
+    .range(from, to);
 
   if (error) throw error;
-  return data as FuelLog[];
+  const logs = (data || []).map((d) => ({ ...d, photoUrl: "" })) as FuelLog[];
+  return { logs: logs.slice(0, perPage), hasMore: logs.length > perPage };
 }
 
 export function formatRemainingTime(ms: number): string {

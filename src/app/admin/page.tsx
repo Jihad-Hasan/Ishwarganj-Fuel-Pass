@@ -1,17 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getRecentRefuels } from "@/lib/fuel-service";
 import type { FuelLog } from "@/lib/types";
+
+const PER_PAGE = 20;
 
 export default function AdminPage() {
   const { user, loading: authLoading, pumpName, signOut } = useAuth();
   const router = useRouter();
   const [logs, setLogs] = useState<FuelLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -21,11 +26,24 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (user) {
-      getRecentRefuels(100)
-        .then(setLogs)
+      getRecentRefuels(0, PER_PAGE)
+        .then(({ logs: data, hasMore: more }) => {
+          setLogs(data);
+          setHasMore(more);
+        })
         .finally(() => setLoading(false));
     }
   }, [user]);
+
+  const loadMore = useCallback(async () => {
+    setLoadingMore(true);
+    const nextPage = page + 1;
+    const { logs: data, hasMore: more } = await getRecentRefuels(nextPage, PER_PAGE);
+    setLogs((prev) => [...prev, ...data]);
+    setPage(nextPage);
+    setHasMore(more);
+    setLoadingMore(false);
+  }, [page]);
 
   const filteredLogs = logs.filter((log) =>
     log.plateNumber.toLowerCase().includes(search.toLowerCase()) ||
@@ -71,7 +89,7 @@ export default function AdminPage() {
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div className="bg-white rounded-xl shadow-md p-4 text-center">
             <p className="text-3xl font-black text-blue-900">{logs.length}</p>
-            <p className="text-xs text-slate-500 font-semibold uppercase">Total Records</p>
+            <p className="text-xs text-slate-500 font-semibold uppercase">Loaded Records</p>
           </div>
           <div className="bg-white rounded-xl shadow-md p-4 text-center">
             <p className="text-3xl font-black text-blue-900">
@@ -108,85 +126,101 @@ export default function AdminPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {filteredLogs.map((log) => (
-              <div
-                key={`${log.plateNumber}-${log.timestamp}`}
-                className="bg-white rounded-xl shadow-md p-4"
-              >
-                {/* Top row: plate + pump */}
-                <div className="flex items-start gap-3">
-                  {/* Photo thumbnail */}
-                  {log.photoUrl ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={log.photoUrl}
-                      alt="Vehicle"
-                      className="w-14 h-14 rounded-lg object-cover flex-shrink-0"
-                    />
-                  ) : (
-                    <div className="w-14 h-14 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+          <>
+            <div className="space-y-3">
+              {filteredLogs.map((log) => (
+                <div
+                  key={`${log.plateNumber}-${log.timestamp}`}
+                  className="bg-white rounded-xl shadow-md p-4"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10m10 0h4m-4 0H9m4 0V6m0 0h1a1 1 0 011 1v4l3 2v3a1 1 0 01-1 1h-1" />
                       </svg>
                     </div>
-                  )}
 
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-slate-800 tracking-wide">
-                      {log.plateNumber}
-                    </p>
-                    <p className="text-sm text-slate-500 mt-0.5">
-                      <span className="font-semibold text-blue-800">{log.pumpName}</span>
-                      {" · "}
-                      <span className="capitalize">{log.vehicleType}</span>
-                    </p>
-                  </div>
-                </div>
-
-                {/* Details grid */}
-                <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2">
-                  {/* Last fueled */}
-                  <div className="bg-slate-50 rounded-lg px-3 py-2">
-                    <p className="text-[10px] text-slate-400 font-semibold uppercase">Last Fueled</p>
-                    <p className="text-xs font-bold text-slate-700 mt-0.5">
-                      {new Date(log.timestamp).toLocaleDateString("en-BD", {
-                        day: "numeric", month: "short", year: "numeric"
-                      })}
-                    </p>
-                    <p className="text-[10px] text-slate-500">
-                      {new Date(log.timestamp).toLocaleTimeString("en-BD", {
-                        hour: "2-digit", minute: "2-digit"
-                      })}
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-slate-800 tracking-wide">
+                        {log.plateNumber}
+                      </p>
+                      <p className="text-sm text-slate-500 mt-0.5">
+                        <span className="font-semibold text-blue-800">{log.pumpName}</span>
+                        {" · "}
+                        <span className="capitalize">{log.vehicleType}</span>
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Next schedule */}
-                  <div className="bg-blue-50 rounded-lg px-3 py-2">
-                    <p className="text-[10px] text-blue-400 font-semibold uppercase">Next Schedule</p>
-                    {log.scheduledTime ? (
-                      <>
-                        <p className="text-xs font-bold text-blue-800 mt-0.5">
-                          {new Date(log.scheduledTime).toLocaleDateString("en-BD", {
-                            day: "numeric", month: "short", year: "numeric"
-                          })}
-                        </p>
-                        {log.timeSlot && (
-                          <p className="text-[10px] text-blue-600">{log.timeSlot}</p>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-xs font-bold text-blue-800 mt-0.5">
-                        {new Date(log.timestamp + 72 * 60 * 60 * 1000).toLocaleDateString("en-BD", {
+                  {/* Details grid */}
+                  <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2">
+                    <div className="bg-slate-50 rounded-lg px-3 py-2">
+                      <p className="text-[10px] text-slate-400 font-semibold uppercase">Last Fueled</p>
+                      <p className="text-xs font-bold text-slate-700 mt-0.5">
+                        {new Date(log.timestamp).toLocaleDateString("en-BD", {
                           day: "numeric", month: "short", year: "numeric"
                         })}
                       </p>
-                    )}
+                      <p className="text-[10px] text-slate-500">
+                        {new Date(log.timestamp).toLocaleTimeString("en-BD", {
+                          hour: "2-digit", minute: "2-digit"
+                        })}
+                      </p>
+                    </div>
+
+                    <div className="bg-blue-50 rounded-lg px-3 py-2">
+                      <p className="text-[10px] text-blue-400 font-semibold uppercase">Next Schedule</p>
+                      {log.scheduledTime ? (
+                        <>
+                          <p className="text-xs font-bold text-blue-800 mt-0.5">
+                            {new Date(log.scheduledTime).toLocaleDateString("en-BD", {
+                              day: "numeric", month: "short", year: "numeric"
+                            })}
+                          </p>
+                          {log.timeSlot && (
+                            <p className="text-[10px] text-blue-600">{log.timeSlot}</p>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-xs font-bold text-blue-800 mt-0.5">
+                          {new Date(log.timestamp + 72 * 60 * 60 * 1000).toLocaleDateString("en-BD", {
+                            day: "numeric", month: "short", year: "numeric"
+                          })}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {hasMore && !search && (
+              <button
+                type="button"
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="w-full mt-4 py-3 rounded-xl border-2 border-slate-200 bg-white text-sm font-bold text-slate-600 hover:border-blue-300 active:scale-[0.98] transition-all disabled:opacity-50"
+              >
+                {loadingMore ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Loading...
+                  </span>
+                ) : (
+                  "Load More"
+                )}
+              </button>
+            )}
+
+            {!hasMore && !search && (
+              <p className="text-center text-xs text-slate-400 mt-4">All records loaded</p>
+            )}
+          </>
         )}
       </main>
     </div>
