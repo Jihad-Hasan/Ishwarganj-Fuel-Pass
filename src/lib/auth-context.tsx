@@ -1,13 +1,8 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signOut as firebaseSignOut,
-  User,
-} from "firebase/auth";
-import { getAppAuth } from "./firebase";
+import { User } from "@supabase/supabase-js";
+import { supabase } from "./supabase";
 
 interface AuthState {
   user: User | null;
@@ -25,8 +20,7 @@ const AuthContext = createContext<AuthState>({
   signOut: async () => {},
 });
 
-// Pump name is derived from the email prefix: jamuna@pump.com -> "Jamuna"
-function derivePumpName(email: string | null): string {
+function derivePumpName(email: string | null | undefined): string {
   if (!email) return "Unknown Pump";
   const prefix = email.split("@")[0];
   return prefix.charAt(0).toUpperCase() + prefix.slice(1);
@@ -37,22 +31,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(getAppAuth(), (u) => {
-      setUser(u);
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
       setLoading(false);
     });
-    return unsub;
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(getAppAuth(), email, password);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
   };
 
   const signOut = async () => {
-    await firebaseSignOut(getAppAuth());
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   };
 
-  const pumpName = derivePumpName(user?.email ?? null);
+  const pumpName = derivePumpName(user?.email);
 
   return (
     <AuthContext.Provider value={{ user, loading, pumpName, signIn, signOut }}>

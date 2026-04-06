@@ -1,50 +1,46 @@
-import {
-  doc,
-  getDocFromServer,
-  setDoc,
-  collection,
-  query,
-  orderBy,
-  limit,
-  getDocsFromServer,
-} from "firebase/firestore";
-import { getDb } from "./firebase";
+import { supabase } from "./supabase";
 import type { FuelLog, EligibilityResult } from "./types";
 
 const COOLDOWN_MS = 72 * 60 * 60 * 1000; // 72 hours
 
-// Bangla digit → English digit mapping
 const BANGLA_DIGITS: Record<string, string> = {
   "০": "0", "১": "1", "২": "2", "৩": "3", "৪": "4",
   "৫": "5", "৬": "6", "৭": "7", "৮": "8", "৯": "9",
 };
 
-// Convert Bangla digits to English for consistent DB keys
 function banglaToEnglishDigits(str: string): string {
   return str.replace(/[০-৯]/g, (d) => BANGLA_DIGITS[d] || d);
 }
 
-// Normalize plate for Firestore doc ID (consistent key for both Bangla & English input)
 function normalizePlate(plate: string): string {
   return banglaToEnglishDigits(plate)
     .trim()
     .toLowerCase()
     .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9\u0980-\u09FF\-]/g, ""); // keep Bangla chars, English, digits, hyphens
+    .replace(/[^a-z0-9\u0980-\u09FF\-]/g, ""); 
 }
 
 export async function checkEligibility(
   plateNumber: string
 ): Promise<EligibilityResult> {
   const docId = normalizePlate(plateNumber);
-  const docRef = doc(getDb(), "fuel_logs", docId);
-  const snap = await getDocFromServer(docRef);
+  
+  // Select single row from Supabase
+  const { data, error } = await supabase
+    .from("fuel_logs")
+    .select("*")
+    .eq("id", docId)
+    .single();
 
-  if (!snap.exists()) {
+  // PGRST116 is Supabase's error code for "no rows returned", which is fine for new vehicles
+  if (error && error.code !== "PGRST116") {
+    throw error;
+  }
+
+  if (!data) {
     return { eligible: true, remainingMs: 0, lastPump: null, lastTimestamp: null };
   }
 
-  const data = snap.data() as FuelLog;
   const elapsed = Date.now() - data.timestamp;
 
   if (elapsed < COOLDOWN_MS) {
@@ -59,7 +55,6 @@ export async function checkEligibility(
   return { eligible: true, remainingMs: 0, lastPump: null, lastTimestamp: null };
 }
 
-// Convert photo to compressed base64 data URL (stored directly in Firestore)
 export async function compressPhoto(file: File): Promise<string> {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -90,8 +85,9 @@ export async function confirmRefuel(
 ): Promise<void> {
   const docId = normalizePlate(plateNumber);
 
-  const log: FuelLog = {
-    plateNumber: plateNumber.trim(), // Keep original Bangla display form
+  const log = {
+    id: docId, // Map document ID to primary key
+    plateNumber: plateNumber.trim(),
     pumpName,
     staffEmail,
     timestamp: Date.now(),
@@ -99,18 +95,29 @@ export async function confirmRefuel(
     vehicleType,
   };
 
-  await setDoc(doc(getDb(), "fuel_logs", docId), log);
-  await setDoc(doc(collection(getDb(), "fuel_history"), `${docId}_${Date.now()}`), log);
+  // Upsert into fuel_logs (updates if exists, inserts if new)
+  const { error: logsError } = await supabase.from("fuel_logs").upsert(log);
+  if (logsError) throw logsError;
+
+  // Insert into history with unique ID
+  const historyLog = {
+    ...log,
+    id: `${docId}_${Date.now()}`,
+  };
+
+  const { error: historyError } = await supabase.from("fuel_history").insert(historyLog);
+  if (historyError) throw historyError;
 }
 
 export async function getRecentRefuels(count: number = 50): Promise<FuelLog[]> {
-  const q = query(
-    collection(getDb(), "fuel_history"),
-    orderBy("timestamp", "desc"),
-    limit(count)
-  );
-  const snap = await getDocsFromServer(q);
-  return snap.docs.map((d) => d.data() as FuelLog);
+  const { data, error } = await supabase
+    .from("fuel_history")
+    .select("*")
+    .order("timestamp", { ascending: false })
+    .limit(count);
+
+  if (error) throw error;
+  return data as FuelLog[];
 }
 
 export function formatRemainingTime(ms: number): string {
